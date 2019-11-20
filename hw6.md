@@ -161,7 +161,7 @@ cv_birthweight %>%
   ggplot(aes(x = model, y = rmse, fill = model)) + 
   geom_violin() +
   labs(
-        title = "Comparing Predictive Birthweight Models",
+        title = "Violin Plot Comparing Three Models",
         x = "Model",
         y = "RMSE"
       ) +
@@ -171,3 +171,8 @@ cv_birthweight %>%
 ```
 
 <img src="hw6_files/figure-gfm/unnamed-chunk-3-1.png" width="90%" />
+Comments: When comparing the my own hypothesized, model 1 and the
+interaction models, I noticed that both the hypothesized model and model
+with interaction show relative smaller RMSE compared to the model 2.
+Model 2 has the highest RMSEs, suggesting a lot of modifications should
+be done to improve this model.
