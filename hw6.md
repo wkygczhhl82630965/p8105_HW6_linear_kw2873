@@ -3,6 +3,11 @@ hw6
 Keyi Wang
 11/20/2019
 
+# Problem 1
+
+Load and clean the data for regression analysis (i.e. convert numeric to
+factor where appropriate, check for missing data, etc.)
+
 ``` r
 birthweight = 
   read_csv("./data/birthweight.csv") %>% 
@@ -41,9 +46,16 @@ birthweight =
 
     ## See spec(...) for full column specifications.
 
+Propose a regression model for birthweight. This model may be based on a
+hypothesized structure for the factors that underly birthweight, on a
+data-driven model-building process, or a combination of the two.
+Describe your modeling process and show a plot of model residuals
+against fitted values – use add\_predictions and add\_residuals in
+making this plot.
+
 ``` r
 hypo_model = function(df) {
-  lm(bwt ~ bhead + blength + delwt +menarche , data = df)
+  lm(bwt ~ bhead + blength + delwt + menarche , data = df)
 }
 
 weight_model = hypo_model(birthweight)
@@ -62,3 +74,11 @@ birthweight %>%
 ```
 
 <img src="hw6_files/figure-gfm/unnamed-chunk-2-1.png" width="90%" />
+Since we want to build a model based on baby birthweight, I decided to
+choose several predictors that are quite relavent to baby birthweight,
+which are baby’s head circumference at birth, baby’s length, mother’s
+weight at delivery and mother’s age at birth. As we can see in the above
+graph, there is a heavy cluster in the lower right corner, with a tail
+fanning out to the top left, which suggests that my model is not great.
+The residuals do not form a desired straight line across the range of
+the predicted values
