@@ -3,7 +3,7 @@ hw6
 Keyi Wang
 11/20/2019
 
-# Problem 1
+# Problem 1-part1
 
 Load and clean the data for regression analysis (i.e. convert numeric to
 factor where appropriate, check for missing data, etc.)
@@ -82,3 +82,41 @@ graph, there is a heavy cluster in the lower right corner, with a tail
 fanning out to the top left, which suggests that my model is not great.
 The residuals do not form a desired straight line across the range of
 the predicted values
+
+# part 2
+
+Compare your model to two others: One using length at birth and
+gestational age as predictors (main effects only) One using head
+circumference, length, sex, and all interactions (including the
+three-way interaction) between these Make this comparison in terms of
+the cross-validated prediction error; use crossv\_mc and functions in
+purrr as appropriate.
+
+``` r
+model_1 = function(df) {
+  lm(bwt ~ blength + gaweeks, data = df)
+}
+
+model_2 = function(df) {
+  lm(bwt ~ bhead + blength + babysex +
+       (bhead * blength) + (bhead * babysex) + (blength * babysex) +
+       (bhead * blength * babysex), data = df)
+}
+
+
+## cross validation, split data and run three models on each split
+
+set.seed(10)
+
+cv_birthweight = 
+  crossv_mc(birthweight, 100) 
+
+cv_birthweight = 
+  cv_birthweight %>% 
+  mutate(hypo_model = map(train, hypo_model),
+         model_1 = map(train, model_1),
+         model_2 = map(train, model_2)) %>% 
+  mutate(rmse_hypo_model = map2_dbl(hypo_model, test, ~rmse(model = .x, data = .y)),
+         rmse_model_1 = map2_dbl(model_1, test, ~rmse(model = .x, data = .y)),
+         rmse_model_2 = map2_dbl(model_2, test, ~rmse(model = .x, data = .y)))
+```
