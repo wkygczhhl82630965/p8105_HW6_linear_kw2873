@@ -46,6 +46,36 @@ birthweight =
 
     ## See spec(...) for full column specifications.
 
+``` r
+## check for missing data
+colMeans(is.na(birthweight)) %>% 
+  knitr::kable()
+```
+
+|            |                         x |
+| ---------- | ------------------------: |
+| babysex    |                         0 |
+| bhead      |                         0 |
+| blength    |                         0 |
+| bwt        |                         0 |
+| delwt      |                         0 |
+| fincome    |                         0 |
+| frace      |                         0 |
+| gaweeks    |                         0 |
+| malform    |                         0 |
+| menarche   |                         0 |
+| mheight    |                         0 |
+| momage     |                         0 |
+| mrace      |                         0 |
+| parity     |                         0 |
+| pnumlbw    |                         0 |
+| pnumsga    |                         0 |
+| ppbmi      |                         0 |
+| ppwt       |                         0 |
+| smoken     |                         0 |
+| wtgain     |                         0 |
+| Therefore, | there is no missing data. |
+
 Propose a regression model for birthweight. This model may be based on a
 hypothesized structure for the factors that underly birthweight, on a
 data-driven model-building process, or a combination of the two.
@@ -63,10 +93,10 @@ weight_model = hypo_model(birthweight)
   
 birthweight %>% 
   add_predictions(weight_model) %>% 
-  add_residuals (weight_model) %>% 
+  add_residuals(weight_model) %>% 
   ggplot(aes(x = pred, y = resid)) + 
     geom_point(alpha = 0.3,color = "orange") +
-  labs (
+  labs(
         title = "Hypothesized Regression Model: Predicted Values vs Residuals",
         x = "Predicted Values",
         y = "Residuals"
@@ -94,13 +124,13 @@ purrr as appropriate.
 
 ``` r
 model_1 = function(df) {
-  lm(bwt ~ blength + gaweeks, data = df)
+  lm(bwt ~ blength + gaweeks, data = birthweight )
 }
 
 model_2 = function(df) {
   lm(bwt ~ bhead + blength + babysex +
        (bhead * blength) + (bhead * babysex) + (blength * babysex) +
-       (bhead * blength * babysex), data = df)
+       (bhead * blength * babysex), data = birthweight)
 }
 
 
@@ -119,4 +149,25 @@ cv_birthweight =
   mutate(rmse_hypo_model = map2_dbl(hypo_model, test, ~rmse(model = .x, data = .y)),
          rmse_model_1 = map2_dbl(model_1, test, ~rmse(model = .x, data = .y)),
          rmse_model_2 = map2_dbl(model_2, test, ~rmse(model = .x, data = .y)))
+
+## plot for visualization
+cv_birthweight %>% 
+  select(starts_with("rmse")) %>% 
+  gather(key = model, value = rmse) %>% 
+  mutate(model = str_replace(model, "rmse_", ""),
+         model = recode(model, hypo_model = "Hypothesized Model", model_1 = "Model with no Interaction",
+                        model_2 = "Model with Interaction"), 
+         model = fct_inorder(model)) %>% 
+  ggplot(aes(x = model, y = rmse, fill = model)) + 
+  geom_violin() +
+  labs(
+        title = "Comparing Predictive Birthweight Models",
+        x = "Model",
+        y = "RMSE"
+      ) +
+    viridis::scale_color_viridis(
+      discrete = TRUE
+    )
 ```
+
+<img src="hw6_files/figure-gfm/unnamed-chunk-3-1.png" width="90%" />
