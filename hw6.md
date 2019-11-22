@@ -136,8 +136,6 @@ model_2 = function(df) {
 
 ## cross validation, split data and run three models on each split
 
-set.seed(10)
-
 cv_birthweight = 
   crossv_mc(birthweight, 100) 
 
@@ -176,3 +174,64 @@ interaction models, I noticed that both the hypothesized model and model
 with interaction show relative smaller RMSE compared to the model 2.
 Model 2 has the highest RMSEs, suggesting a lot of modifications should
 be done to improve this model.
+
+# problem 2
+
+``` r
+# loading data
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2017-01-01",
+    date_max = "2017-12-31") %>%
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) %>%
+  select(name, id, everything())
+```
+
+    ## Registered S3 method overwritten by 'crul':
+    ##   method                 from
+    ##   as.character.form_file httr
+
+    ## Registered S3 method overwritten by 'hoardr':
+    ##   method           from
+    ##   print.cache_info httr
+
+    ## file path:          /Users/wangkeyi/Library/Caches/rnoaa/ghcnd/USW00094728.dly
+
+    ## file last updated:  2019-11-21 19:42:47
+
+    ## file min/max dates: 1869-01-01 / 2019-11-30
+
+``` r
+bootstrap_samples = 
+  weather_df %>% 
+  modelr::bootstrap(n = 50) %>% 
+  mutate(
+    models = map(strap, ~ lm(tmax ~ tmin, data = .x)),
+    results = map(models, broom::tidy),
+    variables = map(models, broom::glance)
+    ) %>% 
+  select(-strap, -models) %>% 
+  unnest(results, variables)
+
+
+# we use the bootstrap samples to make plot on r2
+# make plot and display
+bootstrap_samples %>% 
+  filter(term == "tmin") %>% 
+  ggplot(aes(x = r.squared)) + 
+  geom_histogram(aes(y = stat(count / sum(count))), stat = "density", fill = "lightblue") +
+  labs(
+    title = "Distribution Plot of the Estimate of R square",
+    x = "Estimate of R square",
+    y = "Density",
+    caption = "Data: 2017 Central Park weather data ") +
+  geom_vline(aes(xintercept = mean(r.squared))) +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+<img src="hw6_files/figure-gfm/unnamed-chunk-5-1.png" width="90%" />
