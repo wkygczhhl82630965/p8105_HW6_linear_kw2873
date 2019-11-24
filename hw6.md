@@ -248,14 +248,14 @@ weather_df =
 
     ## file path:          /Users/wangkeyi/Library/Caches/rnoaa/ghcnd/USW00094728.dly
 
-    ## file last updated:  2019-11-23 21:52:15
+    ## file last updated:  2019-11-24 18:18:15
 
     ## file min/max dates: 1869-01-01 / 2019-11-30
 
 ``` r
 bootstrap_samples = 
   weather_df %>% 
-  modelr::bootstrap(n = 500) %>% 
+  modelr::bootstrap(n = 5000) %>% 
   mutate(
     models = map(strap, ~ lm(tmax ~ tmin, data = .x)),
     results = map(models, broom::tidy),
@@ -270,11 +270,14 @@ CI_r2 =
   filter(term == "tmin") %>% 
   pull(r.squared) %>% 
   quantile(., c(0.025, 0.975))
+
 CI_r2
 ```
 
     ##      2.5%     97.5% 
-    ## 0.8944307 0.9277806
+    ## 0.8938343 0.9275407
+
+Therefore the 95% CI of r^2 is \[0.8938343, 0.9275407\].
 
 ``` r
 bootstrap_samples %>% 
@@ -293,17 +296,14 @@ bootstrap_samples %>%
   theme(plot.title = element_text(hjust = 0.5))
 ```
 
-<img src="hw6_files/figure-gfm/unnamed-chunk-6-1.png" width="90%" />
+<img src="hw6_files/figure-gfm/unnamed-chunk-7-1.png" width="90%" />
 
-From the distribution plot of log(beta0\_hat \* beta1\_hat), we may find
-it is also close to a normal distribution, and the black line is the
-mean. However, comparing with R square, it has a heavy tail which means
-the data are more
-dispersed.
+According to the plot, we can see that this is close to normal curve. We
+can also tell from the CI that most of data were distributed around the
+center. Hence, we can say that the estimate is roughly distributed
+normally.
 
 ``` r
-# in this code chunk, we use the bootstrap samples to make plot on log(beta0_hat * beta1_hat) with 95% CI
-
 # calculate the 95% CI of log(beta0_hat * beta1_hat)
 beta_ci = 
   bootstrap_samples %>% 
@@ -323,7 +323,9 @@ beta_ci
 ```
 
     ##     2.5%    97.5% 
-    ## 1.963255 2.055985
+    ## 1.963457 2.057467
+
+Therefore the 95% CI of is \[1.9634567, 2.0574665\]
 
 ``` r
 bootstrap_samples %>% 
@@ -350,4 +352,10 @@ bootstrap_samples %>%
   theme(plot.title = element_text(hjust = 0.5))
 ```
 
-<img src="hw6_files/figure-gfm/unnamed-chunk-7-1.png" width="90%" />
+<img src="hw6_files/figure-gfm/unnamed-chunk-9-1.png" width="90%" />
+
+comments:According to density plot, we can see that this is close to
+normal curve. We can also tell from the CI that most of data were
+distributed around the center. Hence, we can say that the estimate
+log(beta0\_hat \* beta1\_hat) is roughly distributed normally. This
+density plot is not as “normal”/“belled” as r^2’s distribution.
