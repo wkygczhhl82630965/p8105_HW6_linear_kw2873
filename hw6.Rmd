@@ -78,15 +78,22 @@ colMeans(is.na(birthweight)) %>%
   knitr::kable()
 
 ```
+
 Therefore, there is no missing data.
 
 
 
 Propose a regression model for birthweight. This model may be based on a hypothesized structure for the factors that underly birthweight, on a data-driven model-building process, or a combination of the two. Describe your modeling process and show a plot of model residuals against fitted values – use add_predictions and add_residuals in making this plot.
 ```{r}
+
+full = lm(bwt ~ ., data = birthweight)
+summary(full)
+```
+
+
+```{r}
 hypo_model = function(df) {
-  lm(bwt ~ bhead + blength + delwt + menarche , data = df)
-}
+  lm(bwt ~ bhead + blength + delwt + menarche , data = birthweight)}
 
 weight_model = hypo_model(birthweight)
 
@@ -113,50 +120,51 @@ One using head circumference, length, sex, and all interactions (including the t
 Make this comparison in terms of the cross-validated prediction error; use crossv_mc and functions in purrr as appropriate.
 
 ```{r}
+## the smaller model
+model_1 =lm(bwt ~ blength + gaweeks, data = birthweight )
 
-model_1 = function(df) {
-  lm(bwt ~ blength + gaweeks, data = birthweight )
-}
-
-model_2 = function(df) {
-  lm(bwt ~ bhead + blength + babysex +
+## model with interactions
+model_2 = lm(bwt ~ bhead + blength + babysex +
        (bhead * blength) + (bhead * babysex) + (blength * babysex) +
        (bhead * blength * babysex), data = birthweight)
-}
+
 
 
 ## cross validation, split data and run three models on each split
 
 cv_birthweight = 
-  crossv_mc(birthweight, 100) 
+  crossv_mc(birthweight, 100) %>%
+  mutate(
+    train = map(train, as_tibble),
+    test = map(test, as_tibble))%>%
+  mutate(hypo_model = map(train, ~lm(bwt ~ babysex + bhead + blength + delwt + gaweeks + parity + smoken, data = .x)),
+         model_1  = map(train, ~lm(bwt ~ blength + gaweeks, data = .x)),
+         model_2 = map(train, ~lm(bwt ~ bhead + blength + babysex +
+       (bhead * blength) + (bhead * babysex) + (blength * babysex) +
+       (bhead * blength * babysex), data = .x))) %>% 
+  mutate(rmse_proposed = map2_dbl(hypo_model, test, ~rmse(model = .x, data = .y)),
+         rmse_main_effect = map2_dbl(model_1, test, ~rmse(model = .x, data = .y)),
+         rmse_interaction = map2_dbl(model_2, test, ~rmse(model = .x, data = .y)))
 
-cv_birthweight = 
-  cv_birthweight %>% 
-  mutate(hypo_model = map(train, hypo_model),
-         model_1 = map(train, model_1),
-         model_2 = map(train, model_2)) %>% 
-  mutate(rmse_hypo_model = map2_dbl(hypo_model, test, ~rmse(model = .x, data = .y)),
-         rmse_model_1 = map2_dbl(model_1, test, ~rmse(model = .x, data = .y)),
-         rmse_model_2 = map2_dbl(model_2, test, ~rmse(model = .x, data = .y)))
 
-## plot for visualization
+## visualization
 cv_birthweight %>% 
   select(starts_with("rmse")) %>% 
-  gather(key = model, value = rmse) %>% 
-  mutate(model = str_replace(model, "rmse_", ""),
-         model = recode(model, hypo_model = "Hypothesized Model", model_1 = "Model with no Interaction",
-                        model_2 = "Model with Interaction"), 
-         model = fct_inorder(model)) %>% 
-  ggplot(aes(x = model, y = rmse, fill = model)) + 
-  geom_violin() +
-  labs(
-        title = "Violin Plot Comparing Three Models",
-        x = "Model",
-        y = "RMSE"
-      ) +
-    viridis::scale_color_viridis(
-      discrete = TRUE
-    )
+  pivot_longer(
+    everything(),
+    names_to = "model", 
+    values_to = "rmse",
+    names_prefix = "rmse_") %>% 
+  mutate(model = fct_inorder(model)) %>% 
+  ggplot(aes(x = model, y = rmse, fill = model)) +
+  geom_violin(alpha = 0.5) +
+  labs(title = "Violin Plot of RMSE in Different Models",
+       x = "Models",
+       y = "Root Mean of Square Error") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+
 
 ```
 Comments: 
@@ -184,7 +192,7 @@ weather_df =
 ```{r}
 bootstrap_samples = 
   weather_df %>% 
-  modelr::bootstrap(n = 50) %>% 
+  modelr::bootstrap(n = 500) %>% 
   mutate(
     models = map(strap, ~ lm(tmax ~ tmin, data = .x)),
     results = map(models, broom::tidy),
@@ -193,11 +201,17 @@ bootstrap_samples =
   select(-strap, -models) %>% 
   unnest(results, variables)
 
+# calculate the 95% CI of r sqaure
+CI_r2 = 
+  bootstrap_samples %>% 
+  filter(term == "tmin") %>% 
+  pull(r.squared) %>% 
+  quantile(., c(0.025, 0.975))
+CI_r2
 
-# we use the bootstrap samples to make plot on r2
-# make plot and display
 bootstrap_samples %>% 
   filter(term == "tmin") %>% 
+  # make plot
   ggplot(aes(x = r.squared)) + 
   geom_histogram(aes(y = stat(count / sum(count))), stat = "density", fill = "lightblue") +
   labs(
@@ -206,7 +220,68 @@ bootstrap_samples %>%
     y = "Density",
     caption = "Data: 2017 Central Park weather data ") +
   geom_vline(aes(xintercept = mean(r.squared))) +
+  geom_vline(aes(xintercept = CI_r2[[1]]), color = "red") +
+  geom_vline(aes(xintercept = CI_r2[[2]]), color = "red") +
   theme(plot.title = element_text(hjust = 0.5))
 
+  
 ```
+
+From the distribution plot of log(beta0_hat * beta1_hat), we may find it is also close to a normal distribution, and the black line is the mean. However, comparing with R square, it has a heavy tail which means the data are more dispersed.
+
+
+
+
+
+```{r}
+# in this code chunk, we use the bootstrap samples to make plot on log(beta0_hat * beta1_hat) with 95% CI
+
+# calculate the 95% CI of log(beta0_hat * beta1_hat)
+beta_ci = 
+  bootstrap_samples %>% 
+  select(.id, term, estimate) %>% 
+  pivot_wider(
+    id_cols = .id,
+    names_from = term,
+    values_from = estimate
+  ) %>% 
+  janitor::clean_names() %>% 
+  mutate(log_estimate = log(intercept * tmin)) %>% 
+  pull(log_estimate) %>% 
+  quantile(., c(0.025, 0.975))
+
+# display
+beta_ci
+
+bootstrap_samples %>% 
+  select(.id, term, estimate) %>% 
+  pivot_wider(
+    id_cols = .id,
+    names_from = term,
+    values_from = estimate
+  ) %>% 
+  janitor::clean_names() %>% 
+  mutate(log_estimate = log(intercept * tmin)) %>% 
+  #make plot
+  ggplot(aes(x = log_estimate)) + 
+  geom_histogram(aes(y = stat(count / sum(count))), stat = "density", fill = "lightblue") +
+  labs(
+    title = "Distribution Plot of the Estimate of log(beta0_hat * beta1_hat)",
+    x = "Estimate of log(beta0_hat * beta1_hat)",
+    y = "Density",
+    caption = "Data: 2017 Central Park weather data ") +
+  
+  geom_vline(aes(xintercept = mean(log_estimate))) +
+  geom_vline(aes(xintercept = beta_ci[[1]]), color = "red") +
+  geom_vline(aes(xintercept = beta_ci[[2]]), color = "red") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+
+
+
+
+
+
+
 
